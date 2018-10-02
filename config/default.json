@@ -1,0 +1,8 @@
+{
+    "dbConfig": {
+        "host": "mongo",
+        "port": 27017,
+        "dbName": "todo"
+    },
+    "port": 9001
+}
