@@ -2,6 +2,7 @@ import express from "express"
 import { Todo } from "../schemas/todo"
 import mail from "../utils/email"
 import nodemailer from "nodemailer"
+import { User } from "../schemas/users"
 
 let router = express.Router()
 
@@ -9,30 +10,50 @@ const CHECK_EVERY = 1000 * 3600
 const time = new Date()
 time.setHours(23)
 
-const mailOptions = {
-    from: '"Fred Foo 👻" <foo@example.com>', // sender address
-    to: 'aljaz.markezic@gmail.com', // list of receivers
-    subject: 'Hello ✔', // Subject line
-    text: 'Hello world?', // plain text body
-    html: '<b>Hello world?</b>' // html body
-};
-
 setInterval(async () => {
     let now = new Date()
-    let todos = await Todo.find({ date: { $lt: now } })
-    if (time.getHours() >= now.getHours()) {
-        console.log("Send emails")
-        let mailClient = await mail
+    let mailClient = await mail
 
-        // send mail with defined transport object
-        mailClient.sendMail(mailOptions, (error, info) => {
-            if (error) {
-                console.log(error);
+    if (time.getHours() >= now.getHours()) {
+        let todos = await Todo.find({ date: { $lt: now } })
+        let users = await User.find()
+        let todosPerUser = []
+        todos.forEach((todo) => {
+            let user = users.find((userEntry) => userEntry._id == todo.user)
+            if (typeof user !== "undefined") {
+                // check if user is already in the table
+                let userIndex = todosPerUser.findIndex((entry) => entry.user.id === user.id)
+                if (userIndex === -1) {
+                    todosPerUser.push({ user, todos: [todo] })
+                } else {
+                    todosPerUser[userIndex].todos.push(todo)
+                }
             }
-            console.log('Message sent: %s', info.messageId);
-            // Preview only available when sending through an Ethereal account
-            console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
-        });
+        })
+        todosPerUser.forEach((entry) => {
+            let text = "The folowing todos have expired: "
+            entry.todos.forEach((todo) => {
+                text += todo.name + ", "
+            })
+            let mailOptions = {
+                from: '"Fred Foo 👻" <todo@example.com>', // sender address
+                to: entry.user.email, // list of receivers
+                subject: 'Todo\'s have expired', // Subject line
+                text, // plain text body
+                html: "<b>" + text + "</b>" // html body
+            };
+
+            // send mail with defined transport object
+            mailClient.sendMail(mailOptions, (error, info) => {
+                if (error) {
+                    console.log(error);
+                }
+                console.log('Message sent: %s', info.messageId);
+                // Preview only available when sending through an Ethereal account
+                console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+            });
+        })
+
     } else {
         console.log("Not time yet")
     }

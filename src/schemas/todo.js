@@ -5,6 +5,10 @@ let todoSchema = new db.Schema({
         type: String,
         required: true
     },
+    user: {
+        type: String,
+        required: true
+    },
     description: String,
     date: Date,
     finished: {
